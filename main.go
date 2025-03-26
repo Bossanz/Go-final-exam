@@ -39,6 +39,7 @@ func main() {
 	// ตั้งค่า API routes
 	controller.SetupRoutes(router, db)
 	controller.SetupPasswordRoutes(router, db)
+	controller.SetupProductRoutes(router, db)
 
 	// เริ่มเซิร์ฟเวอร์
 	router.Run(":8080")
