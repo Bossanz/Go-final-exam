@@ -9,10 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type AuthController struct {
-	DB *gorm.DB
-}
-
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
@@ -27,10 +23,15 @@ type LoginResponse struct {
 	Address     string `json:"address"`
 }
 
+type AuthController struct {
+	DB *gorm.DB
+}
+
 func NewAuthController(db *gorm.DB) *AuthController {
 	return &AuthController{DB: db}
 }
 
+// ฟังก์ชั่น Login ที่ตรวจสอบ email และ password ของผู้ใช้
 func (c *AuthController) Login(ctx *gin.Context) {
 	var req LoginRequest
 	// 1. ตรวจสอบรูปแบบ JSON
@@ -52,27 +53,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	// 3. ถ้ารหัสผ่านในฐานข้อมูลยังไม่ได้แฮช
-	if err := bcrypt.CompareHashAndPassword([]byte(customer.Password), []byte(customer.Password)); err != nil {
-		// แฮชรหัสผ่านใหม่
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"error": "ไม่สามารถแฮชรหัสผ่านได้",
-			})
-			return
-		}
-		// อัพเดตฐานข้อมูลด้วยรหัสผ่านที่แฮชแล้ว
-		customer.Password = string(hashedPassword)
-		if err := c.DB.Save(&customer).Error; err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"error": "ไม่สามารถอัพเดตข้อมูลรหัสผ่านได้",
-			})
-			return
-		}
-	}
-
-	// 4. ตรวจสอบรหัสผ่านที่แฮชแล้ว
+	// 3. ตรวจสอบรหัสผ่านที่แฮชในฐานข้อมูล
 	err := bcrypt.CompareHashAndPassword([]byte(customer.Password), []byte(req.Password))
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
@@ -81,7 +62,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	// 5. เตรียม response โดยไม่ส่ง password
+	// 4. เตรียม response โดยไม่ส่ง password
 	response := LoginResponse{
 		CustomerID:  customer.CustomerID,
 		FirstName:   customer.FirstName,
@@ -91,10 +72,11 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		Address:     customer.Address,
 	}
 
-	// 6. ส่งข้อมูลกลับ
+	// 5. ส่งข้อมูลกลับ
 	ctx.JSON(http.StatusOK, response)
 }
 
+// ฟังก์ชั่นตั้งค่าเส้นทางของ API
 func SetupRoutes(router *gin.Engine, db *gorm.DB) {
 	authController := NewAuthController(db)
 
